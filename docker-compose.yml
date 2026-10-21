@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-eddash}
+      POSTGRES_USER: ${POSTGRES_USER:-eddash}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eddash}
+      TZ: ${TZ:-Asia/Kuala_Lumpur}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-eddash} -d ${POSTGRES_DB:-eddash}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    # Uncomment to connect with psql from the host. Keep closed in production.
+    # ports:
+    #   - "127.0.0.1:5432:5432"
+
+  app:
+    build:
+      context: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER:-eddash}:${POSTGRES_PASSWORD:-eddash}@db:5432/${POSTGRES_DB:-eddash}
+      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
+      SEED_DEMO: ${SEED_DEMO:-false}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      TZ: ${TZ:-Asia/Kuala_Lumpur}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+
+volumes:
+  db_data:

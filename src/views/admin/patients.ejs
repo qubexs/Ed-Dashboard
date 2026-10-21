@@ -1,0 +1,113 @@
+<%- include('partials/head') %>
+
+<section class="panel">
+  <form method="get" action="/admin/patients" class="filters">
+    <label class="field">
+      <span>Search</span>
+      <input type="search" name="q" value="<%= filters.q %>" placeholder="Name or medical no." />
+    </label>
+
+    <label class="field">
+      <span>Status</span>
+      <select name="status">
+        <option value="">All statuses</option>
+        <% statuses.forEach(function (status) { %>
+        <option value="<%= status %>" <%= filters.status === status ? 'selected' : '' %>>
+          <%= statusLabel(status) %>
+        </option>
+        <% }); %>
+      </select>
+    </label>
+
+    <label class="field">
+      <span>Zone</span>
+      <select name="zone">
+        <option value="">All zones</option>
+        <% zones.forEach(function (zone) { %>
+        <option value="<%= zone.code %>" <%= filters.zone === zone.code ? 'selected' : '' %>>
+          <%= zone.name %>
+        </option>
+        <% }); %>
+      </select>
+    </label>
+
+    <div class="filter-actions">
+      <button type="submit" class="btn btn-primary">Filter</button>
+      <a class="btn btn-ghost" href="/admin/patients">Clear</a>
+    </div>
+  </form>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>Patient queue</h2>
+    <span class="pill"><%= patients.length %> shown (max 200)</span>
+  </div>
+
+  <% if (!patients.length) { %>
+  <p class="empty">No patients match these filters.</p>
+  <% } else { %>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Patient</th>
+          <th>Zone</th>
+          <th>Status</th>
+          <th>Arrived</th>
+          <th>Waited</th>
+          <th class="align-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% patients.forEach(function (patient) { %>
+        <tr>
+          <td>
+            <strong><%= patient.name || 'Unnamed' %></strong>
+            <small class="cell-sub"><%= patient.medical_no || '—' %></small>
+          </td>
+          <td>
+            <span class="badge" style="--badge-color: <%= patient.zone_color || '#5FE3D6' %>">
+              <%= patient.zone_name || '—' %>
+            </span>
+          </td>
+          <td>
+            <span class="status status-<%= patient.status %>">
+              <%= statusLabel(patient.status) %>
+            </span>
+          </td>
+          <td class="nowrap"><%= formatDateTime(patient.arrived_at, timezone) %></td>
+          <td class="nowrap"><%= patient.waited_minutes %> min</td>
+          <td>
+            <div class="row-actions">
+              <a class="btn btn-ghost btn-sm" href="/admin/patients/<%= patient.id %>/edit">Edit</a>
+
+              <form method="post" action="/admin/patients/<%= patient.id %>/status" class="inline-form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                <input type="hidden" name="redirect" value="/admin/patients" />
+                <select name="status" data-autosubmit aria-label="Change status">
+                  <% statuses.forEach(function (status) { %>
+                  <option value="<%= status %>" <%= patient.status === status ? 'selected' : '' %>>
+                    <%= statusLabel(status) %>
+                  </option>
+                  <% }); %>
+                </select>
+                <button type="submit" class="btn btn-ghost btn-sm">Set</button>
+              </form>
+
+              <form method="post" action="/admin/patients/<%= patient.id %>/delete"
+                data-confirm="Delete this patient record? Ward admissions linked to it are removed too.">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+</section>
+
+<%- include('partials/foot') %>

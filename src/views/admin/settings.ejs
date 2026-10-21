@@ -1,0 +1,107 @@
+<%- include('partials/head') %>
+
+<form method="post" action="/admin/settings" class="stack-lg">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+  <section class="panel">
+    <h2>Hospital identity</h2>
+    <p class="hint">Shown at the top of the live display.</p>
+    <div class="form-grid">
+      <label class="field">
+        <span>Hospital name</span>
+        <input type="text" name="hospital_name" maxlength="120" required
+          value="<%= settings.hospital_name %>" />
+      </label>
+
+      <label class="field">
+        <span>Logo URL</span>
+        <input type="text" name="logo_url" maxlength="500"
+          value="<%= settings.logo_url %>" />
+        <small>Path under /public (e.g. /img/logo.svg) or a full https URL.</small>
+      </label>
+
+      <label class="field field-wide">
+        <span>Subtitle</span>
+        <input type="text" name="hospital_subtitle" maxlength="240"
+          value="<%= settings.hospital_subtitle %>" />
+      </label>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Footer and QR code</h2>
+    <p class="hint">The QR code is generated from the link below every time the display loads it.</p>
+    <div class="form-grid">
+      <label class="field field-wide">
+        <span>Footer message (Malay)</span>
+        <input type="text" name="footer_message" maxlength="300"
+          value="<%= settings.footer_message %>" />
+      </label>
+
+      <label class="field field-wide">
+        <span>Footer message (English)</span>
+        <input type="text" name="footer_message_en" maxlength="300"
+          value="<%= settings.footer_message_en %>" />
+      </label>
+
+      <label class="field">
+        <span>QR link</span>
+        <input type="url" name="qr_url" maxlength="500"
+          value="<%= settings.qr_url %>" />
+      </label>
+
+      <label class="field">
+        <span>QR caption</span>
+        <input type="text" name="qr_caption" maxlength="200"
+          value="<%= settings.qr_caption %>" />
+      </label>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Live behaviour</h2>
+    <div class="form-grid">
+      <label class="field">
+        <span>Hospital timezone</span>
+        <input type="text" name="timezone" list="timezone-list" required
+          value="<%= settings.timezone %>" />
+        <datalist id="timezone-list">
+          <option value="Asia/Kuala_Lumpur"></option>
+          <option value="Asia/Singapore"></option>
+          <option value="Asia/Jakarta"></option>
+          <option value="Asia/Kolkata"></option>
+          <option value="UTC"></option>
+        </datalist>
+        <small>IANA timezone used for the clock and "since 00:00" totals.</small>
+      </label>
+
+      <label class="field">
+        <span>Refresh interval (seconds)</span>
+        <input type="number" name="refresh_seconds" min="5" max="300"
+          value="<%= settings.refresh_seconds %>" />
+        <small>How often the display polls the server. 5-300 seconds.</small>
+      </label>
+
+      <label class="field">
+        <span>Waiting time buffer (minutes)</span>
+        <input type="number" name="waiting_buffer_minutes" min="0" max="600"
+          value="<%= settings.waiting_buffer_minutes %>" />
+        <small>Added on top of the measured average waiting time.</small>
+      </label>
+
+      <label class="field">
+        <span>Fallback waiting time (minutes)</span>
+        <input type="number" name="waiting_fallback_minutes" min="0" max="600"
+          value="<%= settings.waiting_fallback_minutes %>" />
+        <small>Shown when no patients are currently waiting.</small>
+      </label>
+    </div>
+  </section>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Save settings</button>
+    <a class="btn btn-ghost" href="/admin">Cancel</a>
+  </div>
+</form>
+
+<%- include('partials/foot') %>

@@ -1,0 +1,116 @@
+<%- include('partials/head') %>
+
+<section class="panel">
+  <h2>Request ward admission</h2>
+  <p class="hint">
+    Linking a patient moves them to "waiting ward". You can also queue a name without a patient record.
+  </p>
+
+  <form method="post" action="/admin/wards" class="form-grid form-grid-4">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+    <label class="field">
+      <span>Patient</span>
+      <select name="patient_id">
+        <option value="">— No linked patient —</option>
+        <% candidates.forEach(function (candidate) { %>
+        <option value="<%= candidate.id %>">
+          <%= candidate.name || 'Unnamed' %><%= candidate.medical_no ? ' (' + candidate.medical_no + ')' : '' %>
+        </option>
+        <% }); %>
+      </select>
+    </label>
+
+    <label class="field">
+      <span>Patient name (optional)</span>
+      <input type="text" name="patient_name" maxlength="120" placeholder="If not linked" />
+    </label>
+
+    <label class="field">
+      <span>Ward</span>
+      <input type="text" name="ward" maxlength="80" placeholder="e.g. Wad Perubatan 1" />
+    </label>
+
+    <label class="field">
+      <span>Requested at</span>
+      <input type="datetime-local" name="requested_at" />
+      <small>Leave empty for now (<%= timezone %>).</small>
+    </label>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Request admission</button>
+    </div>
+  </form>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>Ward admissions</h2>
+    <span class="pill"><%= admissions.length %> shown</span>
+  </div>
+
+  <% if (!admissions.length) { %>
+  <p class="empty">No ward admissions yet.</p>
+  <% } else { %>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Patient</th>
+          <th>Ward</th>
+          <th>Status</th>
+          <th>Requested</th>
+          <th>Waiting</th>
+          <th class="align-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% admissions.forEach(function (admission) { %>
+        <tr>
+          <td>
+            <strong>
+              <%= admission.patient_display_name || admission.patient_name || 'Unnamed' %>
+            </strong>
+            <small class="cell-sub"><%= admission.medical_no || '—' %></small>
+          </td>
+          <td><%= admission.ward || '—' %></td>
+          <td>
+            <span class="status status-<%= admission.status %>">
+              <%= statusLabel(admission.status) %>
+            </span>
+          </td>
+          <td class="nowrap"><%= formatDateTime(admission.requested_at, timezone) %></td>
+          <td class="nowrap">
+            <%= admission.status === 'waiting' ? admission.waited_minutes + ' min' : '—' %>
+          </td>
+          <td>
+            <div class="row-actions">
+              <% if (admission.status === 'waiting') { %>
+              <form method="post" action="/admin/wards/<%= admission.id %>/admit" class="inline-form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                <input type="text" name="ward" maxlength="80" placeholder="Ward"
+                  value="<%= admission.ward || '' %>" />
+                <button type="submit" class="btn btn-primary btn-sm">Admit</button>
+              </form>
+
+              <form method="post" action="/admin/wards/<%= admission.id %>/cancel">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                <button type="submit" class="btn btn-ghost btn-sm">Cancel</button>
+              </form>
+              <% } %>
+              <form method="post" action="/admin/wards/<%= admission.id %>/delete"
+                data-confirm="Delete this ward admission record?">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+</section>
+
+<%- include('partials/foot') %>

@@ -1,0 +1,149 @@
+<%- include('partials/head') %>
+
+<section class="stat-grid">
+  <article class="stat">
+    <p class="stat-label">Active now</p>
+    <p class="stat-value"><%= formatNumber(stats.active) %></p>
+    <p class="stat-note">Waiting, in treatment or waiting ward</p>
+  </article>
+  <article class="stat">
+    <p class="stat-label">Waiting now</p>
+    <p class="stat-value"><%= formatNumber(stats.waiting) %></p>
+    <p class="stat-note">Patients in the waiting queue</p>
+  </article>
+  <article class="stat">
+    <p class="stat-label">Arrivals today</p>
+    <p class="stat-value"><%= formatNumber(stats.today) %></p>
+    <p class="stat-note">Since 00:00 hospital time</p>
+  </article>
+  <article class="stat">
+    <p class="stat-label">Waiting for ward</p>
+    <p class="stat-value"><%= formatNumber(stats.wardWaiting) %></p>
+    <p class="stat-note">Pending ward admissions</p>
+  </article>
+  <article class="stat">
+    <p class="stat-label">User accounts</p>
+    <p class="stat-value"><%= formatNumber(userCount) %></p>
+    <p class="stat-note">Admin and viewer access</p>
+  </article>
+  <article class="stat">
+    <p class="stat-label">Database</p>
+    <p class="stat-value stat-value-sm">
+      <%= dbHealth.ok ? dbHealth.latencyMs + ' ms' : 'Offline' %>
+    </p>
+    <p class="stat-note">
+      <%= dbHealth.ok ? 'PostgreSQL responding' : (dbHealth.error || 'Check connection') %>
+    </p>
+  </article>
+</section>
+
+<div class="grid-2">
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Live display snapshot</h2>
+      <span class="pill pill-live">Live</span>
+    </div>
+
+    <dl class="snapshot">
+      <div>
+        <dt>Current waiting time</dt>
+        <dd><%= data.waitingTimeMinutes %> min</dd>
+      </div>
+      <div>
+        <dt>Total since 00:00</dt>
+        <dd><%= formatNumber(data.totalSinceMidnight) %></dd>
+      </div>
+      <div>
+        <dt>Ward waiting time</dt>
+        <dd><%= data.wardWaitingMinutes %> min</dd>
+      </div>
+      <div>
+        <dt>Patients waiting</dt>
+        <dd><%= formatNumber(data.waitingPatients) %></dd>
+      </div>
+    </dl>
+
+    <ul class="zone-list">
+      <% data.zones.forEach(function (zone) { %>
+      <li>
+        <span class="dot" style="background: <%= zone.color %>"></span>
+        <span><%= zone.name %></span>
+        <strong><%= formatNumber(zone.count) %></strong>
+      </li>
+      <% }); %>
+    </ul>
+
+    <a class="btn btn-ghost btn-block" href="/" target="_blank" rel="noopener">
+      Open live display
+    </a>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Recent arrivals</h2>
+      <a href="/admin/patients">All patients</a>
+    </div>
+
+    <% if (!recent.length) { %>
+    <p class="empty">No patients recorded yet.</p>
+    <% } else { %>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Patient</th>
+            <th>Zone</th>
+            <th>Status</th>
+            <th>Arrived</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% recent.forEach(function (patient) { %>
+          <tr>
+            <td>
+              <strong><%= patient.name || 'Unnamed' %></strong>
+              <small class="cell-sub"><%= patient.medical_no || '—' %></small>
+            </td>
+            <td>
+              <span class="badge" style="--badge-color: <%= patient.zone_color || '#5FE3D6' %>">
+                <%= patient.zone_name || '—' %>
+              </span>
+            </td>
+            <td>
+              <span class="status status-<%= patient.status %>">
+                <%= statusLabel(patient.status) %>
+              </span>
+            </td>
+            <td class="nowrap"><%= formatDateTime(patient.arrived_at, timezone) %></td>
+          </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+    <% } %>
+  </section>
+</div>
+
+<section class="panel">
+  <h2>Quick actions</h2>
+  <div class="action-grid">
+    <a class="action" href="/admin/patients/new">
+      <strong>Add patient</strong>
+      <span>Register an arrival and assign a triage zone.</span>
+    </a>
+    <a class="action" href="/admin/wards">
+      <strong>Request ward admission</strong>
+      <span>Queue a patient for an inpatient bed.</span>
+    </a>
+    <a class="action" href="/admin/zones">
+      <strong>Manage zones</strong>
+      <span>Rename zones, change colours and ordering.</span>
+    </a>
+    <a class="action" href="/admin/settings">
+      <strong>Display settings</strong>
+      <span>Hospital name, QR link, refresh interval and fallbacks.</span>
+    </a>
+  </div>
+</section>
+
+<%- include('partials/foot') %>

@@ -1,0 +1,102 @@
+<%- include('partials/head') %>
+
+<div class="grid-2 grid-aside">
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Zones</h2>
+      <span class="pill"><%= zones.length %> configured</span>
+    </div>
+    <p class="hint">
+      Zone counts on the display include patients who are waiting, in treatment or waiting for a ward.
+    </p>
+
+    <div class="zone-rows">
+      <% zones.forEach(function (zone) { %>
+      <div class="zone-row">
+        <form method="post" action="/admin/zones/<%= zone.code %>" class="form-grid form-grid-3">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+          <label class="field">
+            <span>Code</span>
+            <input type="text" value="<%= zone.code %>" disabled />
+          </label>
+
+          <label class="field">
+            <span>Name</span>
+            <input type="text" name="name" maxlength="80" required value="<%= zone.name %>" />
+          </label>
+
+          <label class="field">
+            <span>Name (English)</span>
+            <input type="text" name="name_en" maxlength="80" value="<%= zone.name_en || '' %>" />
+          </label>
+
+          <label class="field">
+            <span>Colour</span>
+            <input type="color" name="color" value="<%= zone.color %>" />
+          </label>
+
+          <label class="field">
+            <span>Order</span>
+            <input type="number" name="sort_order" min="0" max="999" value="<%= zone.sort_order %>" />
+          </label>
+
+          <label class="field checkbox-field">
+            <input type="checkbox" name="active" <%= zone.active ? 'checked' : '' %> />
+            <span>Active on display</span>
+          </label>
+
+          <div class="row-actions">
+            <button type="submit" class="btn btn-primary btn-sm">Save</button>
+          </div>
+        </form>
+
+        <form method="post" action="/admin/zones/<%= zone.code %>/delete"
+          data-confirm="Delete zone '<%= zone.name %>'? This cannot be undone.">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+          <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+        </form>
+      </div>
+      <% }); %>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Add zone</h2>
+    <p class="hint">Codes are used internally and in the data model.</p>
+    <form method="post" action="/admin/zones" class="stack">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+      <label class="field">
+        <span>Code</span>
+        <input type="text" name="code" pattern="[a-z0-9_-]{2,32}" maxlength="32" required
+          placeholder="e.g. blue" />
+        <small>Lowercase letters, numbers, _ or -.</small>
+      </label>
+
+      <label class="field">
+        <span>Name</span>
+        <input type="text" name="name" maxlength="80" required placeholder="Zon Biru" />
+      </label>
+
+      <label class="field">
+        <span>Name (English)</span>
+        <input type="text" name="name_en" maxlength="80" placeholder="Blue Zone" />
+      </label>
+
+      <label class="field">
+        <span>Colour</span>
+        <input type="color" name="color" value="#5FE3D6" />
+      </label>
+
+      <label class="field">
+        <span>Order</span>
+        <input type="number" name="sort_order" min="0" max="999" value="4" />
+      </label>
+
+      <button type="submit" class="btn btn-primary btn-block">Create zone</button>
+    </form>
+  </section>
+</div>
+
+<%- include('partials/foot') %>

@@ -1,0 +1,56 @@
+<%- include('partials/head') %>
+
+<section class="stat-grid">
+  <article class="stat">
+    <p class="stat-label">Database</p>
+    <p class="stat-value stat-value-sm"><%= dbHealth.ok ? 'Online' : 'Offline' %></p>
+    <p class="stat-note"><%= dbHealth.ok ? dbHealth.latencyMs + ' ms round trip' : (dbHealth.error || 'Unavailable') %></p>
+  </article>
+  <article class="stat">
+    <p class="stat-label">Patients</p>
+    <p class="stat-value"><%= formatNumber(counts.patients) %></p>
+    <p class="stat-note">All records</p>
+  </article>
+  <article class="stat">
+    <p class="stat-label">Ward admissions</p>
+    <p class="stat-value"><%= formatNumber(counts.admissions) %></p>
+    <p class="stat-note">All records</p>
+  </article>
+  <article class="stat">
+    <p class="stat-label">Uptime</p>
+    <p class="stat-value stat-value-sm"><%= Math.floor(uptimeSeconds / 3600) %>h <%= Math.floor((uptimeSeconds % 3600) / 60) %>m</p>
+    <p class="stat-note">Node <%= nodeVersion %></p>
+  </article>
+</section>
+
+<div class="grid-2">
+  <section class="panel">
+    <h2>PostgreSQL</h2>
+    <% if (dbHealth.ok) { %>
+    <dl class="snapshot snapshot-stack">
+      <div><dt>Status</dt><dd>Connected</dd></div>
+      <div><dt>Database</dt><dd><%= dbHealth.database %></dd></div>
+      <div><dt>Latency</dt><dd><%= dbHealth.latencyMs %> ms</dd></div>
+      <div><dt>Server time</dt><dd><%= formatDateTime(dbHealth.serverTime, settings.timezone) %></dd></div>
+      <div><dt>Version</dt><dd class="wrap"><%= dbHealth.version %></dd></div>
+    </dl>
+    <% } else { %>
+    <p class="empty"><%= dbHealth.error || 'Could not reach the database.' %></p>
+    <% } %>
+  </section>
+
+  <section class="panel">
+    <h2>Application</h2>
+    <dl class="snapshot snapshot-stack">
+      <div><dt>Hospital timezone</dt><dd><%= settings.timezone %></dd></div>
+      <div><dt>Refresh interval</dt><dd><%= settings.refresh_seconds %> s</dd></div>
+      <div><dt>Zones</dt><dd><%= counts.zones %></dd></div>
+      <div><dt>Users</dt><dd><%= counts.users %></dd></div>
+      <div><dt>Memory (RSS)</dt><dd><%= (memory.rss / 1024 / 1024).toFixed(1) %> MB</dd></div>
+      <div><dt>Heap used</dt><dd><%= (memory.heapUsed / 1024 / 1024).toFixed(1) %> MB</dd></div>
+      <div><dt>API health</dt><dd><a href="/api/health" target="_blank" rel="noopener">/api/health</a></dd></div>
+    </dl>
+  </section>
+</div>
+
+<%- include('partials/foot') %>

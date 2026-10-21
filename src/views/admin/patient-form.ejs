@@ -1,0 +1,90 @@
+<%- include('partials/head') %>
+
+<form method="post"
+  action="<%= patient ? '/admin/patients/' + patient.id : '/admin/patients' %>"
+  class="stack-lg">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+  <section class="panel">
+    <h2><%= patient ? 'Edit patient' : 'New patient' %></h2>
+    <p class="hint">
+      Times are entered in the hospital timezone (<%= timezone %>).
+    </p>
+
+    <div class="form-grid">
+      <label class="field">
+        <span>Patient name</span>
+        <input type="text" name="name" maxlength="120"
+          value="<%= patient && patient.name ? patient.name : '' %>" />
+      </label>
+
+      <label class="field">
+        <span>Medical number</span>
+        <input type="text" name="medical_no" maxlength="60"
+          value="<%= patient && patient.medical_no ? patient.medical_no : '' %>" />
+        <small>At least a name or medical number is required.</small>
+      </label>
+
+      <label class="field">
+        <span>Triage zone</span>
+        <select name="zone_code" required>
+          <% zones.forEach(function (zone) { %>
+          <option value="<%= zone.code %>"
+            <%= patient && patient.zone_code === zone.code ? 'selected' : '' %>>
+            <%= zone.name %>
+          </option>
+          <% }); %>
+        </select>
+      </label>
+
+      <label class="field">
+        <span>Status</span>
+        <select name="status">
+          <% statuses.forEach(function (status) { %>
+          <option value="<%= status %>"
+            <%= patient && patient.status === status ? 'selected' : (!patient && status === 'waiting' ? 'selected' : '') %>>
+            <%= statusLabel(status) %>
+          </option>
+          <% }); %>
+        </select>
+      </label>
+
+      <label class="field">
+        <span>Arrived at</span>
+        <input type="datetime-local" name="arrived_at" value="<%= arrivedInput %>" />
+        <small>Leave empty to use the current time.</small>
+      </label>
+
+      <label class="field field-wide">
+        <span>Notes</span>
+        <textarea name="notes" rows="3" maxlength="500"><%= patient && patient.notes ? patient.notes : '' %></textarea>
+      </label>
+    </div>
+
+    <% if (patient) { %>
+    <dl class="snapshot snapshot-inline">
+      <div>
+        <dt>Triaged</dt>
+        <dd><%= formatDateTime(patient.triaged_at, timezone) %></dd>
+      </div>
+      <div>
+        <dt>Called</dt>
+        <dd><%= formatDateTime(patient.called_at, timezone) %></dd>
+      </div>
+      <div>
+        <dt>Discharged</dt>
+        <dd><%= formatDateTime(patient.discharged_at, timezone) %></dd>
+      </div>
+    </dl>
+    <% } %>
+  </section>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">
+      <%= patient ? 'Save patient' : 'Add patient' %>
+    </button>
+    <a class="btn btn-ghost" href="/admin/patients">Cancel</a>
+  </div>
+</form>
+
+<%- include('partials/foot') %>

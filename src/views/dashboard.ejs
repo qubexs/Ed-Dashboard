@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ms">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title><%= settings.hospital_name %> — Live Emergency Dashboard</title>
+    <link rel="icon" href="/img/logo.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/dashboard.css" />
+  </head>
+  <body data-timezone="<%= data.meta.timezone %>" data-refresh="<%= data.meta.refreshSeconds %>">
+    <div class="screen">
+      <header class="topbar">
+        <div class="identity">
+          <img class="logo" src="<%= settings.logo_url || '/img/logo.svg' %>" alt="Logo" />
+          <div class="identity-text">
+            <h1 class="hospital-name"><%= settings.hospital_name %></h1>
+            <p class="hospital-subtitle"><%= settings.hospital_subtitle %></p>
+          </div>
+        </div>
+        <div class="clock">
+          <span id="clock">--:--</span>
+        </div>
+      </header>
+
+      <main class="board">
+        <section class="card hero">
+          <div class="hero-inner">
+            <p class="eyebrow">WAKTU MENUNGGU SEMASA</p>
+            <p class="eyebrow-sub">CURRENT ESTIMATED WAITING TIME</p>
+            <div class="hero-number" id="waitingTime"><%= data.waitingTimeMinutes %></div>
+            <p class="hero-unit">MINIT / MINUTES</p>
+          </div>
+        </section>
+
+        <section class="card stat-card total-card">
+          <p class="stat-title">JUMLAH SEJAK 0000H</p>
+          <p class="stat-sub">TOTAL SINCE 0000H</p>
+          <div class="stat-number" id="totalSinceMidnight"><%= data.totalSinceMidnight %></div>
+          <p class="stat-hint">PESAKIT / PATIENTS</p>
+        </section>
+
+        <section class="card stat-card ward-card">
+          <p class="stat-title">MENUNGGU WARD</p>
+          <p class="stat-sub">WARD ADMISSION</p>
+          <div class="stat-number" id="wardWaiting"><%= data.wardWaitingMinutes %></div>
+          <p class="stat-hint">MINIT / MINUTES</p>
+          <p class="stat-extra"><span id="wardWaitingCount"><%= data.wardWaitingPatients %></span> pesakit menunggu</p>
+        </section>
+
+        <section class="card qr-card">
+          <img
+            class="qr-image"
+            src="/api/qr"
+            alt="QR code for more information"
+            width="512"
+            height="512"
+          />
+          <p class="qr-caption"><%= settings.qr_caption %></p>
+        </section>
+      </main>
+
+      <section class="zones">
+        <% data.zones.forEach(function (zone) { %>
+        <article
+          class="card zone-card"
+          data-zone-code="<%= zone.code %>"
+          style="--zone-color: <%= zone.color %>"
+        >
+          <p class="zone-name"><%= zone.name %></p>
+          <p class="zone-name-en"><%= zone.name_en || '' %></p>
+          <div class="zone-number" data-zone-count><%= zone.count %></div>
+          <p class="zone-hint">pesakit / patients</p>
+        </article>
+        <% }); %>
+      </section>
+
+      <footer class="footer">
+        <div class="footer-updated">
+          <p class="footer-label">KEMAS KINI TERAKHIR</p>
+          <p class="footer-sub">LAST UPDATED</p>
+          <p class="footer-time" id="lastUpdated">--:--</p>
+        </div>
+        <div class="footer-message">
+          <p><%= settings.footer_message %></p>
+          <p class="footer-message-en"><%= settings.footer_message_en %></p>
+        </div>
+        <div class="footer-live">
+          <span class="live-dot" id="liveDot"></span>
+          <span id="liveLabel">LIVE</span>
+        </div>
+      </footer>
+    </div>
+
+    <script src="/js/dashboard.js" defer></script>
+  </body>
+</html>
