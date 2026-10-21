@@ -19,6 +19,7 @@ export const config = {
   adminPassword: process.env.ADMIN_PASSWORD || "admin123",
   seedDemo: bool(process.env.SEED_DEMO),
   trustProxy: bool(process.env.TRUST_PROXY),
+  pmsApiKey: process.env.PMS_API_KEY || "",
 };
 
 if (config.isProduction) {

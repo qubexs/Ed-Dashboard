@@ -397,6 +397,57 @@ a:hover {
   line-height: 1.55;
 }
 
+code {
+  padding: 2px 6px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 6px;
+  background: rgba(148, 163, 184, 0.1);
+  color: #c7d7f0;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 0.92em;
+  word-break: break-word;
+}
+
+.code-block {
+  margin: 16px 0 0;
+  padding: 16px;
+  overflow-x: auto;
+  background: #060d1a;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: #c7d7f0;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre;
+}
+
+.code-block code {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.key-panel {
+  border-color: rgba(95, 227, 214, 0.35);
+}
+
+.key-reveal {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.key-reveal code {
+  flex: 1 1 320px;
+  display: flex;
+  align-items: center;
+  padding: 12px 14px;
+  font-size: 13px;
+  word-break: break-all;
+}
+
 .pill {
   display: inline-flex;
   align-items: center;
@@ -577,6 +628,24 @@ td strong {
   font-size: 11px;
   font-weight: 500;
   white-space: nowrap;
+}
+
+.badge-success {
+  border-color: rgba(74, 222, 128, 0.35);
+  background: rgba(74, 222, 128, 0.1);
+  color: #86efac;
+}
+
+.badge-error {
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.1);
+  color: #fca5a5;
+}
+
+.badge-muted {
+  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(148, 163, 184, 0.08);
+  color: var(--muted);
 }
 
 .status {

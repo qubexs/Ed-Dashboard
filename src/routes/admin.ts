@@ -1,6 +1,7 @@
 import express from "express";
 import bcrypt from "bcryptjs";
 import pool, { health } from "../db.js";
+import { config } from "../config.js";
 import { getAdminStats, getDashboardData } from "../services/summary.js";
 import {
   getSettings,
@@ -8,6 +9,12 @@ import {
   isValidTimezone,
 } from "../services/settings.js";
 import { requireAdmin, setFlash } from "../middleware/auth.js";
+import {
+  PATIENT_STATUSES,
+  statusTimestamps,
+} from "../services/patients.js";
+import { generateApiKey } from "../services/apiKeys.js";
+import { isPmsSyncRunning, runPmsSync } from "../services/pms.js";
 import {
   asyncHandler,
   clampInt,
@@ -18,13 +25,7 @@ import { dateToZonedInput, zonedInputToDate } from "../utils/datetime.js";
 
 const router = express.Router();
 
-const STATUSES: string[] = [
-  "waiting",
-  "in_treatment",
-  "waiting_ward",
-  "discharged",
-  "cancelled",
-];
+const STATUSES: string[] = [...PATIENT_STATUSES];
 const ROLES: string[] = ["admin", "viewer"];
 
 interface ZoneRecord {
@@ -68,37 +69,41 @@ interface WardRow {
   waited_minutes: number;
 }
 
+interface ApiKeyRow {
+  id: number;
+  name: string;
+  prefix: string;
+  last_used_at: Date | null;
+  created_at: Date;
+}
+
 function flashError(req: express.Request, message: string): void {
   setFlash(req, "error", message);
 }
 
-function statusTimestamps(
-  status: string,
-  patient: Pick<PatientRecord, "triaged_at" | "called_at" | "discharged_at">,
-  now = new Date()
-): { triaged_at: Date | null; called_at: Date | null; discharged_at: Date | null } {
-  const result = {
-    triaged_at: patient.triaged_at,
-    called_at: patient.called_at,
-    discharged_at: patient.discharged_at,
-  };
-
-  if (status === "waiting") {
-    result.called_at = null;
-    result.discharged_at = null;
-  } else {
-    if (
-      !result.called_at &&
-      ["in_treatment", "waiting_ward", "discharged"].includes(status)
-    ) {
-      result.called_at = now;
-    }
-    if (status === "discharged" && !result.discharged_at) {
-      result.discharged_at = now;
-    }
+function isHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
   }
+}
 
-  return result;
+function isValidStringMap(value: string): boolean {
+  const text = String(value || "").trim();
+  if (!text) return true;
+  try {
+    const parsed: unknown = JSON.parse(text);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return false;
+    }
+    return Object.values(parsed as Record<string, unknown>).every(
+      (item) => typeof item === "string"
+    );
+  } catch {
+    return false;
+  }
 }
 
 async function getZones(onlyActive = false): Promise<ZoneRecord[]> {
@@ -833,6 +838,176 @@ router.post(
 );
 
 router.get(
+  "/integration",
+  asyncHandler(async (_req, res) => {
+    const settings = await getSettings();
+    res.render("admin/integration", {
+      page: "integration",
+      settings: { ...settings, pms_api_key: "" },
+      apiKeyFromEnv: Boolean(config.pmsApiKey),
+      apiKeySet: Boolean(config.pmsApiKey || settings.pms_api_key),
+      running: isPmsSyncRunning(),
+    });
+  })
+);
+
+router.post(
+  "/integration",
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const current = await getSettings();
+
+    const enabled = req.body.pms_enabled === "on";
+    const baseUrl = String(req.body.pms_base_url || "").trim().slice(0, 500);
+    const patientsPath =
+      String(req.body.pms_patients_path || "").trim().slice(0, 500) ||
+      "/patients";
+    const wardsPath = String(req.body.pms_wards_path || "").trim().slice(0, 500);
+    const interval = clampInt(req.body.pms_interval_seconds, 10, 3600, 30);
+
+    const maps = {
+      pms_patient_map: String(req.body.pms_patient_map || "").trim().slice(0, 20_000),
+      pms_ward_map: String(req.body.pms_ward_map || "").trim().slice(0, 20_000),
+      pms_status_map: String(req.body.pms_status_map || "").trim().slice(0, 20_000),
+      pms_zone_map: String(req.body.pms_zone_map || "").trim().slice(0, 20_000),
+      pms_headers: String(req.body.pms_headers || "").trim().slice(0, 20_000),
+    };
+
+    if (baseUrl && !isHttpUrl(baseUrl)) {
+      flashError(req, "PMS base URL must start with http:// or https://.");
+      res.redirect("/admin/integration");
+      return;
+    }
+    if (enabled && !baseUrl) {
+      flashError(req, "Enter the PMS base URL before enabling the integration.");
+      res.redirect("/admin/integration");
+      return;
+    }
+    if (enabled && !patientsPath && !wardsPath) {
+      flashError(req, "Enter at least one endpoint path.");
+      res.redirect("/admin/integration");
+      return;
+    }
+
+    const mapLabels: Record<string, string> = {
+      pms_patient_map: "Patient field map",
+      pms_ward_map: "Ward field map",
+      pms_status_map: "Status map",
+      pms_zone_map: "Zone map",
+      pms_headers: "Extra headers",
+    };
+    for (const [key, label] of Object.entries(mapLabels)) {
+      if (!isValidStringMap(maps[key as keyof typeof maps])) {
+        flashError(req, `${label} must be a JSON object with string values.`);
+        res.redirect("/admin/integration");
+        return;
+      }
+    }
+
+    const apiKeyInput = String(req.body.pms_api_key || "").trim();
+    const clearApiKey = req.body.pms_clear_api_key === "on";
+    let apiKey = current.pms_api_key;
+    if (apiKeyInput) apiKey = apiKeyInput.slice(0, 500);
+    else if (clearApiKey) apiKey = "";
+
+    await updateSettings({
+      ...maps,
+      pms_enabled: enabled ? "true" : "false",
+      pms_base_url: baseUrl,
+      pms_api_key: apiKey,
+      pms_patients_path: patientsPath,
+      pms_wards_path: wardsPath,
+      pms_interval_seconds: String(interval),
+    });
+
+    setFlash(req, "success", "PMS integration settings saved.");
+    res.redirect("/admin/integration");
+  })
+);
+
+router.post(
+  "/integration/sync",
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    try {
+      const result = await runPmsSync();
+      setFlash(
+        req,
+        "success",
+        `Sync complete: patients ${result.patients.created} new / ${result.patients.updated} updated, ` +
+          `wards ${result.wards.created} new / ${result.wards.updated} updated (${result.durationMs} ms).`
+      );
+    } catch (err) {
+      setFlash(
+        req,
+        "error",
+        `Sync failed: ${err instanceof Error ? err.message : "Unknown error"}`
+      );
+    }
+    res.redirect("/admin/integration");
+  })
+);
+
+router.get(
+  "/api-keys",
+  asyncHandler(async (_req, res) => {
+    const { rows } = await pool.query<ApiKeyRow>(
+      `SELECT id, name, prefix, last_used_at, created_at
+         FROM api_keys
+        ORDER BY created_at DESC`
+    );
+    const settings = await getSettings();
+    res.render("admin/api-keys", {
+      page: "api-keys",
+      keys: rows,
+      newKey: null,
+      timezone: settings.timezone,
+    });
+  })
+);
+
+router.post(
+  "/api-keys",
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const name =
+      String(req.body.name || "").trim().slice(0, 80) || "Integration key";
+    const generated = generateApiKey();
+
+    await pool.query(
+      "INSERT INTO api_keys (name, prefix, key_hash) VALUES ($1, $2, $3)",
+      [name, generated.prefix, generated.hash]
+    );
+
+    const [{ rows }, settings] = await Promise.all([
+      pool.query<ApiKeyRow>(
+        `SELECT id, name, prefix, last_used_at, created_at
+           FROM api_keys
+          ORDER BY created_at DESC`
+      ),
+      getSettings(),
+    ]);
+
+    res.render("admin/api-keys", {
+      page: "api-keys",
+      keys: rows,
+      newKey: generated.key,
+      timezone: settings.timezone,
+    });
+  })
+);
+
+router.post(
+  "/api-keys/:id/delete",
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    await pool.query("DELETE FROM api_keys WHERE id = $1", [req.params.id]);
+    setFlash(req, "success", "API key revoked.");
+    res.redirect("/admin/api-keys");
+  })
+);
+
+router.get(
   "/health",
   asyncHandler(async (_req, res) => {
     const settings = await getSettings();
@@ -848,12 +1023,14 @@ router.get(
       admissions: number;
       zones: number;
       users: number;
+      apiKeys: number;
     }>(
       `SELECT
          (SELECT COUNT(*)::int FROM patients) AS patients,
          (SELECT COUNT(*)::int FROM ward_admissions) AS admissions,
          (SELECT COUNT(*)::int FROM zones) AS zones,
-         (SELECT COUNT(*)::int FROM users) AS users`
+         (SELECT COUNT(*)::int FROM users) AS users,
+         (SELECT COUNT(*)::int FROM api_keys) AS "apiKeys"`
     );
 
     res.render("admin/health", {

@@ -1,6 +1,7 @@
 import app from "./app.js";
 import { config } from "./config.js";
 import { bootstrap } from "./bootstrap.js";
+import { startPmsScheduler, stopPmsScheduler } from "./services/pms.js";
 import pool from "./db.js";
 
 async function main(): Promise<void> {
@@ -10,10 +11,12 @@ async function main(): Promise<void> {
     console.log(
       `[eddash] listening on http://localhost:${config.port} (${config.nodeEnv})`
     );
+    startPmsScheduler();
   });
 
   const shutdown = (signal: string): void => {
     console.log(`[eddash] ${signal} received, shutting down`);
+    stopPmsScheduler();
     server.close(() => {
       pool
         .end()

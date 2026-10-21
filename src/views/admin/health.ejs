@@ -46,6 +46,7 @@
       <div><dt>Refresh interval</dt><dd><%= settings.refresh_seconds %> s</dd></div>
       <div><dt>Zones</dt><dd><%= counts.zones %></dd></div>
       <div><dt>Users</dt><dd><%= counts.users %></dd></div>
+      <div><dt>API keys</dt><dd><%= counts.apiKeys %></dd></div>
       <div><dt>Memory (RSS)</dt><dd><%= (memory.rss / 1024 / 1024).toFixed(1) %> MB</dd></div>
       <div><dt>Heap used</dt><dd><%= (memory.heapUsed / 1024 / 1024).toFixed(1) %> MB</dd></div>
       <div><dt>API health</dt><dd><a href="/api/health" target="_blank" rel="noopener">/api/health</a></dd></div>

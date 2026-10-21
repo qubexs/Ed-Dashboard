@@ -24,6 +24,15 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at    timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS api_keys (
+  id           bigserial PRIMARY KEY,
+  name         text NOT NULL,
+  prefix       text NOT NULL,
+  key_hash     text NOT NULL UNIQUE,
+  last_used_at timestamptz,
+  created_at   timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS patients (
   id          bigserial PRIMARY KEY,
   external_id text,
@@ -51,6 +60,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS patients_external_id_key
 
 CREATE TABLE IF NOT EXISTS ward_admissions (
   id           bigserial PRIMARY KEY,
+  external_id  text,
   patient_id   bigint REFERENCES patients(id) ON DELETE CASCADE,
   patient_name text,
   ward         text,
@@ -63,6 +73,10 @@ CREATE TABLE IF NOT EXISTS ward_admissions (
 );
 
 CREATE INDEX IF NOT EXISTS ward_admissions_status_idx ON ward_admissions (status);
+
+ALTER TABLE ward_admissions ADD COLUMN IF NOT EXISTS external_id text;
+CREATE UNIQUE INDEX IF NOT EXISTS ward_admissions_external_id_key
+  ON ward_admissions (external_id) WHERE external_id IS NOT NULL;
 
 INSERT INTO zones (code, name, name_en, color, sort_order) VALUES
   ('green',  'Zon Hijau',  'Green Zone',  '#5FE3B0', 1),
@@ -81,7 +95,21 @@ INSERT INTO settings (key, value) VALUES
   ('timezone', 'Asia/Kuala_Lumpur'),
   ('refresh_seconds', '10'),
   ('waiting_buffer_minutes', '0'),
-  ('waiting_fallback_minutes', '0')
+  ('waiting_fallback_minutes', '0'),
+  ('pms_enabled', 'false'),
+  ('pms_base_url', ''),
+  ('pms_api_key', ''),
+  ('pms_patients_path', '/patients'),
+  ('pms_wards_path', '/wards'),
+  ('pms_interval_seconds', '30'),
+  ('pms_patient_map', ''),
+  ('pms_ward_map', ''),
+  ('pms_status_map', ''),
+  ('pms_zone_map', ''),
+  ('pms_headers', ''),
+  ('pms_last_sync_at', ''),
+  ('pms_last_status', 'never'),
+  ('pms_last_message', '')
 ON CONFLICT (key) DO NOTHING;
 
 COMMIT;

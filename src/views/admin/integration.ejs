@@ -1,0 +1,208 @@
+<%- include('partials/head') %>
+
+<%
+  const pmsStatus = settings.pms_last_status || 'never';
+  const statusClass = pmsStatus === 'success' ? 'badge-success' : pmsStatus === 'error' ? 'badge-error' : 'badge-muted';
+%>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>Pull from patient management system</h2>
+    <span class="badge <%= statusClass %>"><%= pmsStatus %></span>
+  </div>
+  <p class="hint">
+    The server fetches patient and ward data from your PMS API on a schedule, then
+    upserts it by <code>external_id</code>. This is the reverse of the push API in
+    <a href="/admin/api-keys">API keys</a>. Use one direction per record to avoid
+    conflicting updates.
+  </p>
+
+  <div class="grid-2">
+    <dl class="snapshot snapshot-stack">
+      <div>
+        <dt>Last attempt</dt>
+        <dd><%= settings.pms_last_sync_at ? formatDateTime(settings.pms_last_sync_at, settings.timezone) : 'Never' %></dd>
+      </div>
+      <div>
+        <dt>Result</dt>
+        <dd><%= settings.pms_last_message || 'No sync has run yet.' %></dd>
+      </div>
+      <div>
+        <dt>Schedule</dt>
+        <dd>
+          <%= settings.pms_enabled === 'true' ? 'Every ' + settings.pms_interval_seconds + ' seconds' : 'Disabled' %>
+        </dd>
+      </div>
+      <div>
+        <dt>Source</dt>
+        <dd class="wrap"><%= settings.pms_base_url || 'Not configured' %></dd>
+      </div>
+    </dl>
+
+    <div class="stack">
+      <p class="hint">
+        “Sync now” ignores the schedule and runs immediately. It still uses the saved
+        settings, so save changes first.
+      </p>
+      <form method="post" action="/admin/integration/sync">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <button type="submit" class="btn btn-primary" <%= running ? 'disabled' : '' %>>
+          <%= running ? 'Sync in progress…' : 'Sync now' %>
+        </button>
+      </form>
+      <a class="btn btn-ghost" href="/admin/health">System health</a>
+    </div>
+  </div>
+</section>
+
+<form method="post" action="/admin/integration" class="stack">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+  <section class="panel">
+    <h2>Connection</h2>
+    <div class="form-grid">
+      <label class="field checkbox-field">
+        <input type="checkbox" name="pms_enabled" <%= settings.pms_enabled === 'true' ? 'checked' : '' %> />
+        <span>Enable scheduled pull</span>
+      </label>
+
+      <label class="field">
+        <span>PMS base URL</span>
+        <input type="url" name="pms_base_url" maxlength="500"
+          value="<%= settings.pms_base_url %>" placeholder="https://pms.hospital.local/api" />
+        <small>http:// or https:// only. Internal hospital addresses are allowed.</small>
+      </label>
+
+      <label class="field">
+        <span>API key</span>
+        <% if (apiKeyFromEnv) { %>
+        <input type="text" value="Using PMS_API_KEY from environment" disabled />
+        <small>The environment variable overrides any key saved here.</small>
+        <% } else { %>
+        <input type="password" name="pms_api_key" maxlength="500" autocomplete="new-password"
+          placeholder="<%= apiKeySet ? 'Leave blank to keep the current key' : 'Optional' %>" />
+        <small>Sent as <code>Authorization: Bearer &lt;key&gt;</code>. Stored in the database.</small>
+        <% } %>
+      </label>
+
+      <label class="field">
+        <span>Sync interval (seconds)</span>
+        <input type="number" name="pms_interval_seconds" min="10" max="3600"
+          value="<%= settings.pms_interval_seconds %>" />
+        <small>Minimum 10 seconds. Default 30.</small>
+      </label>
+
+      <label class="field">
+        <span>Patients path</span>
+        <input type="text" name="pms_patients_path" maxlength="500"
+          value="<%= settings.pms_patients_path %>" placeholder="/patients" />
+      </label>
+
+      <label class="field">
+        <span>Wards path</span>
+        <input type="text" name="pms_wards_path" maxlength="500"
+          value="<%= settings.pms_wards_path %>" placeholder="/wards" />
+        <small>Leave blank if your PMS does not expose ward admissions.</small>
+      </label>
+    </div>
+
+    <% if (!apiKeyFromEnv && apiKeySet) { %>
+    <label class="field checkbox-field">
+      <input type="checkbox" name="pms_clear_api_key" />
+      <span>Clear the saved API key</span>
+    </label>
+    <% } %>
+  </section>
+
+  <section class="panel">
+    <h2>Field mapping</h2>
+    <p class="hint">
+      Leave a field map blank to use the default names. Paths support nested fields
+      and array indexes, e.g. <code>visit.triage.level</code> or
+      <code>visits.0.arrivalTime</code>. Status and zone maps translate your PMS
+      values into dashboard values.
+    </p>
+
+    <div class="form-grid">
+      <label class="field">
+        <span>Patient field map</span>
+        <textarea name="pms_patient_map" rows="6"
+          placeholder='{"external_id":"patientId","name":"fullName","medical_no":"mrn","zone_code":"triageLevel","status":"queueStatus","arrived_at":"registrationTime"}'><%= settings.pms_patient_map %></textarea>
+      </label>
+
+      <label class="field">
+        <span>Ward field map</span>
+        <textarea name="pms_ward_map" rows="6"
+          placeholder='{"external_id":"admissionId","patient_external_id":"patientId","ward":"wardName","status":"status","requested_at":"requestedTime"}'><%= settings.pms_ward_map %></textarea>
+      </label>
+
+      <label class="field">
+        <span>Status map</span>
+        <textarea name="pms_status_map" rows="6"
+          placeholder='{"AWAITING":"waiting","IN_TREATMENT":"in_treatment","WAITING_WARD":"waiting_ward","DISCHARGED":"discharged","CANCELLED":"cancelled","ADMITTED":"admitted"}'><%= settings.pms_status_map %></textarea>
+        <small>Keys are your PMS statuses; values must be dashboard statuses.</small>
+      </label>
+
+      <label class="field">
+        <span>Zone map</span>
+        <textarea name="pms_zone_map" rows="6"
+          placeholder='{"1":"red","2":"yellow","3":"green"}'><%= settings.pms_zone_map %></textarea>
+        <small>Keys are your triage levels; values must match active zone codes.</small>
+      </label>
+
+      <label class="field field-wide">
+        <span>Extra request headers</span>
+        <textarea name="pms_headers" rows="4"
+          placeholder='{"X-Hospital-Id":"HTPN","X-API-Key":"{{apiKey}}"}'><%= settings.pms_headers %></textarea>
+        <small>Use <code>{{apiKey}}</code> to insert the configured key in a custom header.</small>
+      </label>
+    </div>
+  </section>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Save integration settings</button>
+  </div>
+</form>
+
+<section class="panel">
+  <h2>Expected responses</h2>
+  <p class="hint">
+    The patients endpoint may return a JSON array, or an object with a
+    <code>patients</code>, <code>data</code>, <code>items</code> or
+    <code>results</code> array. The wards endpoint accepts <code>wards</code>,
+    <code>admissions</code> or the same generic keys.
+  </p>
+
+  <pre class="code-block">GET https://pms.hospital.local/api/patients
+
+[
+  {
+    "external_id": "PMS-1001",
+    "medical_no": "A123456",
+    "name": "Ahmad bin Ali",
+    "zone_code": "green",
+    "status": "waiting",
+    "arrived_at": "2026-10-21T22:10:00+08:00"
+  }
+]</pre>
+
+  <pre class="code-block">GET https://pms.hospital.local/api/wards
+
+[
+  {
+    "external_id": "WARD-9001",
+    "patient_external_id": "PMS-1001",
+    "ward": "Wad 1",
+    "status": "waiting",
+    "requested_at": "2026-10-21T22:20:00+08:00"
+  }
+]</pre>
+
+  <p class="hint">
+    Timestamps may be ISO 8601 strings or epoch milliseconds (epoch seconds are
+    detected automatically). Timestamps without an offset are interpreted in the
+    hospital timezone under <a href="/admin/settings">Display settings</a>.
+  </p>
+</section>
+
+<%- include('partials/foot') %>

@@ -1,0 +1,140 @@
+<%- include('partials/head') %>
+
+<% if (newKey) { %>
+<section class="panel key-panel">
+  <div class="panel-head">
+    <h2>New API key</h2>
+    <span class="pill pill-live">Shown once</span>
+  </div>
+  <p class="hint">
+    Copy this key now and store it in your patient management system. It cannot be
+    shown again. If it is lost, revoke it and create a new one.
+  </p>
+  <div class="key-reveal">
+    <code id="new-api-key"><%= newKey %></code>
+    <button type="button" class="btn btn-ghost btn-sm" data-copy-target="#new-api-key">
+      Copy
+    </button>
+  </div>
+</section>
+<% } %>
+
+<div class="grid-2 grid-aside">
+  <section class="panel">
+    <div class="panel-head">
+      <h2>Active keys</h2>
+      <span class="pill"><%= keys.length %> total</span>
+    </div>
+    <p class="hint">
+      Keys allow any patient management system to create or update patients and ward
+      admissions through the integration API. Revoke a key immediately if it leaks.
+    </p>
+
+    <% if (keys.length) { %>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Key</th>
+            <th>Last used</th>
+            <th>Created</th>
+            <th class="align-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% keys.forEach(function (key) { %>
+          <tr>
+            <td><strong><%= key.name %></strong></td>
+            <td><code><%= key.prefix %>…</code></td>
+            <td class="nowrap">
+              <%= key.last_used_at ? formatDateTime(key.last_used_at, timezone) : 'Never' %>
+            </td>
+            <td class="nowrap"><%= formatDateTime(key.created_at, timezone) %></td>
+            <td>
+              <div class="row-actions">
+                <form method="post" action="/admin/api-keys/<%= key.id %>/delete"
+                  data-confirm="Revoke API key '<%= key.name %>'? Systems using it will stop working.">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                  <button type="submit" class="btn btn-danger btn-sm">Revoke</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+    <% } else { %>
+    <p class="empty">No API keys yet. Create one to connect a patient management system.</p>
+    <% } %>
+  </section>
+
+  <section class="panel">
+    <h2>Create key</h2>
+    <form method="post" action="/admin/api-keys" class="stack">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <label class="field">
+        <span>Label</span>
+        <input type="text" name="name" maxlength="80"
+          placeholder="e.g. Hospital PMS production" />
+        <small>Use a name that identifies the connected system.</small>
+      </label>
+      <button type="submit" class="btn btn-primary btn-block">Generate key</button>
+    </form>
+  </section>
+</div>
+
+<section class="panel">
+  <h2>Integration endpoints</h2>
+  <p class="hint">
+    Send JSON with the <code>X-API-Key</code> header (or
+    <code>Authorization: Bearer &lt;key&gt;</code>). Records are matched by
+    <code>external_id</code>, so repeated calls are safe and update the same record.
+  </p>
+
+  <dl class="snapshot snapshot-stack">
+    <div>
+      <dt>GET</dt>
+      <dd><code>/api/integration/ping</code> — verify the key is working</dd>
+    </div>
+    <div>
+      <dt>POST</dt>
+      <dd><code>/api/integration/patients</code> — create/update one patient</dd>
+    </div>
+    <div>
+      <dt>POST</dt>
+      <dd><code>/api/integration/wards</code> — create/update one ward admission</dd>
+    </div>
+    <div>
+      <dt>POST</dt>
+      <dd>
+        <code>/api/integration/sync</code> — batch create/update
+        <code>patients</code> and <code>wards</code> in one transaction
+      </dd>
+    </div>
+    <div>
+      <dt>GET</dt>
+      <dd><code>/api/dashboard</code> — public metrics used by the live display</dd>
+    </div>
+  </dl>
+
+  <pre class="code-block">curl -X POST http://localhost:3000/api/integration/patients \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: edd_xxx" \
+  -d '{
+    "external_id": "PMS-1001",
+    "medical_no": "A123456",
+    "name": "Ahmad bin Ali",
+    "zone_code": "green",
+    "status": "waiting",
+    "arrived_at": "2026-10-21T22:10:00+08:00"
+  }'</pre>
+
+  <p class="hint">
+    Full payload reference and batch examples are in the project README under
+    “Integration API”.
+  </p>
+</section>
+
+<%- include('partials/foot') %>

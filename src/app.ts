@@ -8,6 +8,7 @@ import morgan from "morgan";
 import pool from "./db.js";
 import { config } from "./config.js";
 import apiRouter from "./routes/api.js";
+import integrationRouter from "./routes/integration.js";
 import dashboardRouter from "./routes/dashboard.js";
 import authRouter from "./routes/auth.js";
 import adminRouter from "./routes/admin.js";
@@ -110,6 +111,7 @@ app.use(
   })
 );
 
+app.use("/api/integration", integrationRouter);
 app.use("/api", apiRouter);
 app.use("/", dashboardRouter);
 
@@ -118,10 +120,10 @@ app.use("/admin", authRouter);
 app.use("/admin", requireAuth, adminRouter);
 
 app.use((req, res) => {
-  if (req.path.startsWith("/api/")) {
-    res.status(404).json({ error: "Not found" });
-    return;
-  }
+    if (req.path.startsWith("/api/")) {
+      res.status(404).json({ ok: false, error: "Not found" });
+      return;
+    }
   res.status(404).render("error", {
     page: "error",
     status: 404,
@@ -141,7 +143,10 @@ app.use(
       console.error(`[error] ${req.method} ${req.originalUrl}`, err);
     }
     if (req.path.startsWith("/api/")) {
-      res.status(status).json({ error: status >= 500 ? "Internal server error" : err.message });
+      res.status(status).json({
+        ok: false,
+        error: status >= 500 ? "Internal server error" : err.message,
+      });
       return;
     }
     res.status(status).render("error", {

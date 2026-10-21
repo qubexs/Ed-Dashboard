@@ -17,6 +17,20 @@ export const DEFAULT_SETTINGS: Settings = {
   refresh_seconds: "10",
   waiting_buffer_minutes: "0",
   waiting_fallback_minutes: "0",
+  pms_enabled: "false",
+  pms_base_url: "",
+  pms_api_key: "",
+  pms_patients_path: "/patients",
+  pms_wards_path: "/wards",
+  pms_interval_seconds: "30",
+  pms_patient_map: "",
+  pms_ward_map: "",
+  pms_status_map: "",
+  pms_zone_map: "",
+  pms_headers: "",
+  pms_last_sync_at: "",
+  pms_last_status: "never",
+  pms_last_message: "",
 };
 
 export const EDITABLE_SETTINGS = Object.keys(DEFAULT_SETTINGS);

@@ -34,6 +34,7 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env}
       SEED_DEMO: ${SEED_DEMO:-false}
       TRUST_PROXY: ${TRUST_PROXY:-false}
+      PMS_API_KEY: ${PMS_API_KEY:-}
       TZ: ${TZ:-Asia/Kuala_Lumpur}
     ports:
       - "${APP_PORT:-3000}:3000"
