@@ -88,11 +88,55 @@
 <section class="panel">
   <h2>Integration endpoints</h2>
   <p class="hint">
-    Send JSON with the <code>X-API-Key</code> header (or
-    <code>Authorization: Bearer &lt;key&gt;</code>). Records are matched by
-    <code>external_id</code>, so repeated calls are safe and update the same record.
+    All endpoints below are served by the API server
+    (<code><%= apiOrigin || 'this server' %></code>). Send the key in the
+    <code>X-API-Key</code> header or as
+    <code>Authorization: Bearer &lt;key&gt;</code>. Write endpoints are idempotent:
+    records are matched by <code>external_id</code>, so repeated calls update the
+    same record.
   </p>
 
+  <p class="hint"><strong>Read API</strong> — consume EDDASH data.</p>
+  <dl class="snapshot snapshot-stack">
+    <div>
+      <dt>GET</dt>
+      <dd><code>/api/v1/ping</code> — verify the key is working</dd>
+    </div>
+    <div>
+      <dt>GET</dt>
+      <dd><code>/api/v1/patients</code> — list patients (<code>status</code>, <code>zone</code>, <code>limit</code>, <code>offset</code>)</dd>
+    </div>
+    <div>
+      <dt>GET</dt>
+      <dd><code>/api/v1/patients/:id</code> — one patient by numeric id or external_id</dd>
+    </div>
+    <div>
+      <dt>GET</dt>
+      <dd><code>/api/v1/wards</code> — list ward admissions (<code>status</code>)</dd>
+    </div>
+    <div>
+      <dt>GET</dt>
+      <dd><code>/api/v1/zones</code> — triage zones with live counts</dd>
+    </div>
+    <div>
+      <dt>GET</dt>
+      <dd><code>/api/v1/dashboard</code> — the display metrics</dd>
+    </div>
+    <div>
+      <dt>GET</dt>
+      <dd><code>/api/v1/stats</code> — queue totals</dd>
+    </div>
+    <div>
+      <dt>GET</dt>
+      <dd><code>/api/v1/settings</code> — public display settings</dd>
+    </div>
+    <div>
+      <dt>GET</dt>
+      <dd><code>/api/v1/health</code> — database health</dd>
+    </div>
+  </dl>
+
+  <p class="hint"><strong>Write API</strong> — push records from a patient management system.</p>
   <dl class="snapshot snapshot-stack">
     <div>
       <dt>GET</dt>
@@ -113,13 +157,14 @@
         <code>patients</code> and <code>wards</code> in one transaction
       </dd>
     </div>
-    <div>
-      <dt>GET</dt>
-      <dd><code>/api/dashboard</code> — public metrics used by the live display</dd>
-    </div>
   </dl>
 
-  <pre class="code-block">curl -X POST http://localhost:3000/api/integration/patients \
+  <p class="hint">
+    <code>/api/dashboard</code>, <code>/api/display-config</code> and
+    <code>/api/qr</code> are public (no key) because the display server reads them.
+  </p>
+
+  <pre class="code-block">curl -X POST <%= apiOrigin %>/api/integration/patients \
   -H "Content-Type: application/json" \
   -H "X-API-Key: edd_xxx" \
   -d '{

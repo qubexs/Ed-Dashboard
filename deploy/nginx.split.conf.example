@@ -1,0 +1,53 @@
+# Example reverse proxy for the three-server layout (PMS → API → dashboard).
+# 1. Replace dash.example.com with your hostname.
+# 2. Install at /etc/nginx/sites-available/eddash and symlink into sites-enabled.
+# 3. Run: sudo nginx -t && sudo systemctl reload nginx
+# 4. Add TLS with: sudo certbot --nginx -d dash.example.com
+# 5. Set TRUST_PROXY=true and DASHBOARD_BASE_URL=https://dash.example.com in .env.
+#
+# Only this vhost is public. The PMS (5000) stays on the internal network:
+# the API server reaches it directly through PMS_BASE_URL.
+
+upstream eddash_display {
+    server 127.0.0.1:3000;
+    keepalive 16;
+}
+
+upstream eddash_api {
+    server 127.0.0.1:4000;
+    keepalive 16;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name dash.example.com;
+
+    client_max_body_size 2m;
+
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Connection "";
+
+    # Admin panel and integration API live on the API server.
+    location /admin {
+        proxy_pass http://eddash_api;
+        proxy_read_timeout 60s;
+    }
+
+    # Live metrics + QR are served by the API server; the browser calls them
+    # same-origin, so the dashboard CSP stays at 'self'.
+    location /api/ {
+        proxy_pass http://eddash_api;
+        proxy_read_timeout 60s;
+    }
+
+    # Everything else is the read-only display.
+    location / {
+        proxy_pass http://eddash_display;
+        proxy_read_timeout 60s;
+    }
+}

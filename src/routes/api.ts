@@ -2,6 +2,7 @@ import express from "express";
 import qrcode from "qrcode";
 import { getDashboardData } from "../services/summary.js";
 import { getSettings } from "../services/settings.js";
+import { getPublicSettings } from "../services/publicConfig.js";
 import { asyncHandler } from "../utils/helpers.js";
 import { health } from "../db.js";
 
@@ -12,6 +13,14 @@ router.get(
   asyncHandler(async (_req, res) => {
     res.set("Cache-Control", "no-store");
     res.json(await getDashboardData());
+  })
+);
+
+router.get(
+  "/display-config",
+  asyncHandler(async (_req, res) => {
+    res.set("Cache-Control", "no-store");
+    res.json({ settings: await getPublicSettings() });
   })
 );
 

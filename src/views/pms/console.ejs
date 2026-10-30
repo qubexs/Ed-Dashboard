@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>PMS — Patient Management System</title>
+    <link rel="icon" href="/img/logo.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/css/pms.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Simulated source system</p>
+        <h1>Patient Management System</h1>
+      </div>
+      <div class="topbar-meta">
+        <span class="pill">API feed <code>/api/patients</code></span>
+        <span class="pill <%= tokenConfigured ? 'ok' : 'warn' %>">
+          <%= tokenConfigured ? 'token required' : 'open (no token)' %>
+        </span>
+      </div>
+    </header>
+
+    <% if (message) { %>
+    <p class="flash ok"><%= message %></p>
+    <% } %>
+    <% if (error) { %>
+    <p class="flash error"><%= error %></p>
+    <% } %>
+
+    <section class="stats">
+      <article><span class="label">Active</span><strong><%= counts.active %></strong></article>
+      <article><span class="label">Waiting</span><strong><%= counts.waiting %></strong></article>
+      <article><span class="label">In treatment</span><strong><%= counts.in_treatment %></strong></article>
+      <article><span class="label">Waiting ward</span><strong><%= counts.waiting_ward %></strong></article>
+      <article><span class="label">Arrivals today</span><strong><%= counts.today %></strong></article>
+      <article><span class="label">Ward requests</span><strong><%= counts.wards_waiting %></strong></article>
+    </section>
+
+    <section class="card">
+      <h2>Register arrival</h2>
+      <form class="grid-form" method="post" action="/patients">
+        <label>Name
+          <input name="name" required maxlength="120" placeholder="Patient name" />
+        </label>
+        <label>Medical no.
+          <input name="medical_no" maxlength="60" placeholder="A123456" />
+        </label>
+        <label>Triage
+          <select name="triage_level">
+            <option value="green">Green</option>
+            <option value="yellow">Yellow</option>
+            <option value="red">Red</option>
+          </select>
+        </label>
+        <label>Notes
+          <input name="notes" maxlength="200" placeholder="Optional" />
+        </label>
+        <button class="primary" type="submit">Register</button>
+      </form>
+      <div class="row-actions">
+        <form method="post" action="/simulate">
+          <input type="hidden" name="count" value="5" />
+          <button type="submit">Simulate 5 arrivals</button>
+        </form>
+        <form method="post" action="/reset" onsubmit="return confirm('Reset all PMS records and reseed demo patients?');">
+          <button class="danger" type="submit">Reset demo data</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Active patients <span class="count"><%= patients.length %></span></h2>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Patient</th>
+            <th>Triage</th>
+            <th>Status</th>
+            <th>Arrived</th>
+            <th class="num">Waiting</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% patients.forEach(function (patient) { %>
+          <tr>
+            <td class="mono"><%= patient.external_id %></td>
+            <td>
+              <strong><%= patient.name %></strong>
+              <span class="muted mono"><%= patient.medical_no || '—' %></span>
+            </td>
+            <td><span class="zone zone-<%= patient.triage_level %>"><%= patient.triage_level %></span></td>
+            <td><span class="status status-<%= patient.status %>"><%= statusLabel(patient.status) %></span></td>
+            <td class="muted"><%= formatDateTime(patient.arrived_at) %></td>
+            <td class="num"><%= patient.waiting_minutes %> min</td>
+            <td class="actions">
+              <% if (patient.status === 'waiting') { %>
+              <form method="post" action="/patients/<%= patient.id %>/status">
+                <input type="hidden" name="status" value="in_treatment" />
+                <button type="submit">Call in</button>
+              </form>
+              <% } %>
+
+              <% if (patient.status !== 'discharged' && patient.status !== 'cancelled' && !pendingWard.has(patient.external_id)) { %>
+              <form method="post" action="/patients/<%= patient.id %>/ward" class="ward-form">
+                <select name="ward">
+                  <% wardsList.forEach(function (ward) { %>
+                  <option value="<%= ward %>"><%= ward %></option>
+                  <% }); %>
+                </select>
+                <button type="submit">Ward</button>
+              </form>
+              <% } %>
+
+              <form method="post" action="/patients/<%= patient.id %>/status">
+                <input type="hidden" name="status" value="discharged" />
+                <button type="submit" class="ghost">Discharge</button>
+              </form>
+              <form method="post" action="/patients/<%= patient.id %>/status">
+                <input type="hidden" name="status" value="cancelled" />
+                <button type="submit" class="ghost danger">Cancel</button>
+              </form>
+            </td>
+          </tr>
+          <% }); %>
+          <% if (patients.length === 0) { %>
+          <tr><td colspan="7" class="empty">No active patients. Register an arrival or simulate activity.</td></tr>
+          <% } %>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>Ward requests <span class="count"><%= wards.length %></span></h2>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Patient</th>
+            <th>Ward</th>
+            <th>Status</th>
+            <th>Requested</th>
+            <th class="num">Waiting</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% wards.forEach(function (ward) { %>
+          <tr>
+            <td class="mono"><%= ward.external_id %></td>
+            <td><%= ward.patient_name %></td>
+            <td><%= ward.ward %></td>
+            <td><span class="status status-<%= ward.status %>"><%= statusLabel(ward.status) %></span></td>
+            <td class="muted"><%= formatDateTime(ward.requested_at) %></td>
+            <td class="num"><%= ward.waiting_minutes %> min</td>
+            <td class="actions">
+              <% if (ward.status === 'waiting') { %>
+              <form method="post" action="/wards/<%= ward.id %>/status">
+                <input type="hidden" name="status" value="admitted" />
+                <button type="submit">Admit</button>
+              </form>
+              <form method="post" action="/wards/<%= ward.id %>/status">
+                <input type="hidden" name="status" value="cancelled" />
+                <button type="submit" class="ghost danger">Cancel</button>
+              </form>
+              <% } else { %>
+              <span class="muted">—</span>
+              <% } %>
+            </td>
+          </tr>
+          <% }); %>
+          <% if (wards.length === 0) { %>
+          <tr><td colspan="7" class="empty">No ward requests.</td></tr>
+          <% } %>
+        </tbody>
+      </table>
+    </section>
+
+    <footer class="foot">
+      <p>EDDASH pulls this feed every <strong>15s</strong> — Base URL <code><%= apiBase %></code></p>
+      <p class="muted">Console actions write to the <code>pms</code> schema only; the dashboard never reads it directly.</p>
+    </footer>
+  </body>
+</html>
